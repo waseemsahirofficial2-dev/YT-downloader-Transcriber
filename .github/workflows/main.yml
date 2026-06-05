@@ -1,0 +1,86 @@
+name: YouTube Downloader & Transcriber
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: 'YouTube Video URL'
+        required: true
+        type: string
+      action:
+        description: 'What do you want to do?'
+        required: true
+        type: choice
+        default: 'video_1080p'
+        options:
+          - video_1080p
+          - video_720p
+          - video_480p
+          - audio
+          - audio_transcript
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  download_and_process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Disable IPv6 & Install Cloudflare WARP
+        run: |
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+          
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update && sudo apt-get install -y cloudflare-warp
+          
+          warp-cli --accept-tos registration new
+          warp-cli --accept-tos mode proxy || warp-cli --accept-tos set-mode proxy
+          warp-cli --accept-tos proxy port 40000 || warp-cli --accept-tos set-proxy-port 40000
+          warp-cli --accept-tos connect
+          sleep 10
+
+      - name: Verify Normal IP vs Proxy IP
+        run: |
+          echo "Normal GitHub IP (Google APIs will use this):"
+          curl -4 -s https://ifconfig.me
+          echo -e "\nCloudflare WARP Proxy IP (YouTube will use this):"
+          curl -x socks5://127.0.0.1:40000 -4 -s https://ifconfig.me
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install System Dependencies (FFmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install ffmpeg -y
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -U --pre "yt-dlp[default]"
+
+      - name: Run Script
+        env:
+          ACTION: ${{ github.event.inputs.action }}
+          YOUTUBE_URL: ${{ github.event.inputs.youtube_url }}
+          ASSEMBLYAI_API_KEY: ${{ secrets.ASSEMBLYAI_API_KEY }}
+        run: python app.py
+
+      - name: Upload Output as Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Downloaded_Files
+          path: |
+            output_file.mp4
+            output_file.mp3
+            transcript.txt
+          retention-days: 5
