@@ -14,24 +14,16 @@ if not YOUTUBE_URL:
 OUTPUT_BASE = "output_file"
 YOUTUBE_COOKIES_PATH = "cookies_yt.txt"
 
-# --- DETERMINE YT-DLP FORMAT BASED ON ACTION ---
-if ACTION == 'video_1080p':
-    format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
-    ext = 'mp4'
-elif ACTION == 'video_720p':
-    format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
-    ext = 'mp4'
-elif ACTION == 'video_480p':
-    format_str = 'bestvideo[height<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
-    ext = 'mp4'
-elif ACTION in ['audio', 'audio_transcript']:
-    format_str = 'bestaudio[ext=m4a]/bestaudio/best'
-    ext = 'm4a'
+# Map out the final exact expected target file based on the selected action
+if 'video' in ACTION:
+    final_target = f"{OUTPUT_BASE}.mp4"
 else:
-    print(f"❌ ERROR: Unknown action '{ACTION}'")
-    sys.exit(1)
+    final_target = f"{OUTPUT_BASE}.mp3"
 
-local_source = f"{OUTPUT_BASE}.{ext}"
+# Wipe any corrupt or leftover files from prior runs before starting a clean loop
+for file_to_clear in [f"{OUTPUT_BASE}.mp4", f"{OUTPUT_BASE}.mp3", f"{OUTPUT_BASE}.m4a", f"{OUTPUT_BASE}.webm", "transcript.txt"]:
+    if os.path.exists(file_to_clear): 
+        os.remove(file_to_clear)
 
 # --- EXACT ORIGINAL PROXY & CLIENT CONFIGS ---
 configs = [
@@ -62,25 +54,34 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
         network = "WARP Proxy" if cfg['proxy'] else "GitHub Native IP"
         print(f"🎥 Trying client: {cfg['client']} | Network: {network} | Cookies: {cfg['use_cookies']}")
         
+        # Explicitly assign formats per iteration to ensure fresh parsing
+        if ACTION == 'video_1080p':
+            format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
+        elif ACTION == 'video_720p':
+            format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
+        elif ACTION == 'video_480p':
+            format_str = 'bestvideo[height<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
+        else:
+            format_str = 'bestaudio/best'
+
         ydl_opts = {
             'format': format_str,
-            'merge_output_format': 'mp4' if 'video' in ACTION else None,
-            'outtmpl': local_source,
+            'outtmpl': f"{OUTPUT_BASE}.%(ext)s", # ALWAYS download using native extensions to prevent container conflicts
             'extractor_args': {'youtube': [f"player_client={cfg['client']}", "player_skip=web,web_embedded"]},
-            'quiet': False, 'no_warnings': True,
+            'quiet': False, 
+            'no_warnings': True,
+            'noplaylist': True,
         }
         
-        # Only use postprocessors for video to ensure it's mp4
         if 'video' in ACTION:
+            ydl_opts['merge_output_format'] = 'mp4'
             ydl_opts['postprocessors'] = [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}]
         else:
-            # For audio, extract to mp3 cleanly
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }]
-            local_source = f"{OUTPUT_BASE}.mp3" # Update expected filename
 
         if cfg['proxy']: 
             ydl_opts['proxy'] = cfg['proxy']
@@ -90,13 +91,20 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
                 ydl.download([YOUTUBE_URL])
-            if os.path.exists(local_source) and os.path.getsize(local_source) > 50000: # Ensure it's not a tiny error file
-                print(f"✅ YT-DLP Download Success!")
-                download_success = True
-                break
         except Exception as e:
-            print(f"⚠️ Failed: {e}")
-            os.system(f"rm -rf {local_source}*")
+            print(f"   ⚠️ Note: yt-dlp reported a terminal warning or minor block: {e}")
+            
+        # --- EXPLICIT SUCCESS TARGET CHECK ---
+        # If the expected converted file is on disk and valid, break out of the download loops immediately
+        if os.path.exists(final_target) and os.path.getsize(final_target) > 50000:
+            print(f"✅ YT-DLP Download Success! Secured file: {final_target}")
+            download_success = True
+            break
+        else:
+            print("   ❌ Final expected file target was not found. Cleaning up cache for next block jump...")
+            for file_to_clear in [f"{OUTPUT_BASE}.mp4", f"{OUTPUT_BASE}.mp3", f"{OUTPUT_BASE}.m4a", f"{OUTPUT_BASE}.webm"]:
+                if os.path.exists(file_to_clear): 
+                    os.remove(file_to_clear)
             
     if download_success: break
 
@@ -113,9 +121,8 @@ if ACTION == 'audio_transcript':
     print("\n📝 Transcribing audio with AssemblyAI... (Waiting on AssemblyAI servers to analyze speech)")
     aai.settings.api_key = ASSEMBLYAI_API_KEY
     
-    # Using English ("en") as requested, with the exact same config approach
     config = aai.TranscriptionConfig(speech_models=["universal-2"], language_code="en", speaker_labels=True)
-    transcript = aai.Transcriber(config=config).transcribe(local_source)
+    transcript = aai.Transcriber(config=config).transcribe(final_target)
     
     if transcript.status == aai.TranscriptStatus.error:
         print(f"❌ Transcription failed: {transcript.error}")
@@ -123,7 +130,6 @@ if ACTION == 'audio_transcript':
 
     transcript_text = ""
     for u in transcript.utterances:
-        # Original format: [Start: X ms, End: Y ms] Speaker A: Text
         transcript_text += f"[Start: {u.start} ms, End: {u.end} ms] Speaker {u.speaker}: {u.text}\n"
     
     with open("transcript.txt", "w", encoding="utf-8") as f:
