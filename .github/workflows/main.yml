@@ -67,20 +67,48 @@ jobs:
           pip install -r requirements.txt
           pip install -U --pre "yt-dlp[default]"
 
-      - name: Run Script
+      - name: Run Python Script
         env:
           ACTION: ${{ github.event.inputs.action }}
           YOUTUBE_URL: ${{ github.event.inputs.youtube_url }}
           ASSEMBLYAI_API_KEY: ${{ secrets.ASSEMBLYAI_API_KEY }}
         run: python app.py
 
-      - name: Upload Output as Artifact
+      - name: Upload to GitHub Releases
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Downloaded_Files
-          path: |
-            output_file.mp4
-            output_file.mp3
-            transcript.txt
-          retention-days: 5
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          # Generate a unique tag for this specific run
+          TAG_NAME="download-${RUN_ID}"
+          TITLE="YouTube Download - Run ${RUN_ID}"
+          
+          echo "📦 Creating Release: $TAG_NAME..."
+          gh release create "$TAG_NAME" --title "$TITLE" --notes "Automated file host generated via Actions."
+          
+          echo "### 📥 Direct Download Links" >> $GITHUB_STEP_SUMMARY
+          echo "Files are securely hosted on GitHub servers. Right-click and 'Save Link As...' to download." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Upload MP4 if it exists
+          if [ -f "output_file.mp4" ]; then
+            echo "   ⬆️ Uploading MP4 to Release..."
+            gh release upload "$TAG_NAME" output_file.mp4
+            echo "- 🎥 **Video File:** [Download output_file.mp4](https://github.com/$REPO/releases/download/$TAG_NAME/output_file.mp4)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Upload MP3 if it exists
+          if [ -f "output_file.mp3" ]; then
+            echo "   ⬆️ Uploading MP3 to Release..."
+            gh release upload "$TAG_NAME" output_file.mp3
+            echo "- 🎵 **Audio File:** [Download output_file.mp3](https://github.com/$REPO/releases/download/$TAG_NAME/output_file.mp3)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Upload Transcript if it exists
+          if [ -f "transcript.txt" ]; then
+            echo "   ⬆️ Uploading Transcript to Release..."
+            gh release upload "$TAG_NAME" transcript.txt
+            echo "- 📝 **Transcript:** [Download transcript.txt](https://github.com/$REPO/releases/download/$TAG_NAME/transcript.txt)" >> $GITHUB_STEP_SUMMARY
+          fi
