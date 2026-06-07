@@ -121,7 +121,7 @@ if ACTION == 'audio_transcript':
     print("\n📝 Transcribing audio with AssemblyAI... (Waiting on AssemblyAI servers to analyze speech)")
     aai.settings.api_key = ASSEMBLYAI_API_KEY
     
-    config = aai.TranscriptionConfig(speech_models=["universal-2"], language_code="en", speaker_labels=True)
+    config = aai.TranscriptionConfig(speech_models=["universal-2"], language_code="ar", speaker_labels=True)
     transcript = aai.Transcriber(config=config).transcribe(final_target)
     
     if transcript.status == aai.TranscriptStatus.error:
