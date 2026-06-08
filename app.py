@@ -6,6 +6,7 @@ import yt_dlp
 ACTION = os.environ.get('ACTION', 'video_1080p')
 YOUTUBE_URL = os.environ.get('YOUTUBE_URL')
 ASSEMBLYAI_API_KEY = os.environ.get('ASSEMBLYAI_API_KEY')
+LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en')
 
 if not YOUTUBE_URL:
     print("❌ ERROR: No YouTube URL provided.")
@@ -118,10 +119,10 @@ if ACTION == 'audio_transcript':
         print("❌ ERROR: ASSEMBLYAI_API_KEY is missing. Add it to your repository secrets.")
         sys.exit(1)
 
-    print("\n📝 Transcribing audio with AssemblyAI... (Waiting on AssemblyAI servers to analyze speech)")
+    print(f"\n📝 Transcribing audio with AssemblyAI... (Language Code: {LANGUAGE_CODE})")
     aai.settings.api_key = ASSEMBLYAI_API_KEY
     
-    config = aai.TranscriptionConfig(speech_models=["universal-2"], language_code="en", speaker_labels=True)
+    config = aai.TranscriptionConfig(speech_models=["universal-2"], language_code=LANGUAGE_CODE, speaker_labels=True)
     transcript = aai.Transcriber(config=config).transcribe(final_target)
     
     if transcript.status == aai.TranscriptStatus.error:
