@@ -55,18 +55,22 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
         network = "WARP Proxy" if cfg['proxy'] else "GitHub Native IP"
         print(f"🎥 Trying client: {cfg['client']} | Network: {network} | Cookies: {cfg['use_cookies']}")
         
-        # Explicitly assign formats per iteration to ensure fresh parsing
-        if ACTION == 'video_best':
-            # No height limits - forces absolute maximum quality available
-            format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
-        elif ACTION == 'video_1080p':
-            format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
-        elif ACTION == 'video_720p':
-            format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
-        elif ACTION == 'video_480p':
-            format_str = 'bestvideo[height<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
+        # --- ISOLATED PLATFORM ROUTING ---
+        is_facebook = "facebook.com" in YOUTUBE_URL.lower() or "fb.watch" in YOUTUBE_URL.lower()
+
+        if is_facebook and 'video' in ACTION:
+            print("📘 Detected Facebook URL: Removing format limits to force maximum resolution...")
+            format_str = 'bestvideo+bestaudio/best'
         else:
-            format_str = 'bestaudio/best'
+            # Explicitly assign formats per iteration to ensure fresh parsing - 100% Original YouTube Logic
+            if ACTION == 'video_1080p':
+                format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
+            elif ACTION == 'video_720p':
+                format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
+            elif ACTION == 'video_480p':
+                format_str = 'bestvideo[height<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
+            else:
+                format_str = 'bestaudio/best'
 
         ydl_opts = {
             'format': format_str,
@@ -99,7 +103,6 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
             print(f"   ⚠️ Note: yt-dlp reported a terminal warning or minor block: {e}")
             
         # --- EXPLICIT SUCCESS TARGET CHECK ---
-        # If the expected converted file is on disk and valid, break out of the download loops immediately
         if os.path.exists(final_target) and os.path.getsize(final_target) > 50000:
             print(f"✅ YT-DLP Download Success! Secured file: {final_target}")
             download_success = True
