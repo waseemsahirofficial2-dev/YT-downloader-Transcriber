@@ -18,6 +18,11 @@ on:
           - video_480p
           - audio
           - audio_transcript
+      language_code:
+        description: 'Transcription Language Code (e.g., en, ar, fr, de, pt)'
+        required: false
+        type: string
+        default: 'en'
 
 permissions:
   actions: write
@@ -72,6 +77,7 @@ jobs:
           ACTION: ${{ github.event.inputs.action }}
           YOUTUBE_URL: ${{ github.event.inputs.youtube_url }}
           ASSEMBLYAI_API_KEY: ${{ secrets.ASSEMBLYAI_API_KEY }}
+          LANGUAGE_CODE: ${{ github.event.inputs.language_code }}
         run: python app.py
 
       - name: Upload Unzipped Files to GitHub Releases
