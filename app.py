@@ -56,7 +56,10 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
         print(f"🎥 Trying client: {cfg['client']} | Network: {network} | Cookies: {cfg['use_cookies']}")
         
         # Explicitly assign formats per iteration to ensure fresh parsing
-        if ACTION == 'video_1080p':
+        if ACTION == 'video_best':
+            # No height limits - forces absolute maximum quality available
+            format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+        elif ACTION == 'video_1080p':
             format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
         elif ACTION == 'video_720p':
             format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
