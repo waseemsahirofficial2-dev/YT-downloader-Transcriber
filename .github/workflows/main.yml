@@ -4,23 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       youtube_url:
-        description: 'YouTube Video URL'
+        description: 'Video URL (YouTube or Facebook)'
         required: true
         type: string
       action:
-        description: 'What do you want to do?'
+        description: 'What do you want to do? (YouTube Quality)'
         required: true
         type: choice
         default: 'video_1080p'
         options:
-          - video_best
           - video_1080p
           - video_720p
           - video_480p
           - audio
           - audio_transcript
       language_code:
-        description: 'Transcription Language Code (e.g., en, ar, fr, de, pt)'
+        description: 'Transcription Language Code (e.g., en, ar, fr, de)'
         required: false
         type: string
         default: 'en'
@@ -55,7 +54,7 @@ jobs:
         run: |
           echo "Normal GitHub IP (Google APIs will use this):"
           curl -4 -s https://ifconfig.me
-          echo -e "\nCloudflare WARP Proxy IP (YouTube will use this):"
+          echo -e "\nCloudflare WARP Proxy IP (YouTube/Facebook will use this):"
           curl -x socks5://127.0.0.1:40000 -4 -s https://ifconfig.me
 
       - name: Set up Python
@@ -73,6 +72,17 @@ jobs:
           pip install -r requirements.txt
           pip install -U --pre "yt-dlp[default]"
 
+      - name: Generate Cookie File from Secrets
+        env:
+          FB_COOKIES: ${{ secrets.FB_COOKIES }}
+        run: |
+          if [ -n "$FB_COOKIES" ]; then
+            echo "$FB_COOKIES" > cookies_yt.txt
+            echo "✅ Cookie file generated successfully from secrets."
+          else
+            echo "⚠️ No FB_COOKIES secret found. Proceeding without cookies."
+          fi
+
       - name: Run Python Script
         env:
           ACTION: ${{ github.event.inputs.action }}
@@ -89,7 +99,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           TAG_NAME="download-${RUN_ID}"
-          TITLE="YouTube Download - Run ${RUN_ID}"
+          TITLE="Automated Download - Run ${RUN_ID}"
           
           echo "📦 Creating Release: $TAG_NAME..."
           gh release create "$TAG_NAME" --title "$TITLE" --notes "Automated file host generated via Actions."
