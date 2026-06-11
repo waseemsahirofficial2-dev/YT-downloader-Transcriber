@@ -62,19 +62,19 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
             print("📘 Detected Facebook URL: Removing format limits to force maximum resolution...")
             format_str = 'bestvideo+bestaudio/best'
         else:
-            # Dual-orientation matching handles both Landscape (1920x1080) and Portrait Shorts (1080x1920) perfectly
+            # Using 'res' instead of 'height' properly evaluates both horizontal (1920x1080) and vertical (1080x1920) streams.
             if ACTION == 'video_1080p':
-                format_str = 'bestvideo[height<=1080][width<=1920]+bestaudio/bestvideo[height<=1920][width<=1080]+bestaudio/best[height<=1080][width<=1920]/best[height<=1920][width<=1080]/best'
+                format_str = 'bestvideo[res<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=1080]+bestaudio/best'
             elif ACTION == 'video_720p':
-                format_str = 'bestvideo[height<=720][width<=1280]+bestaudio/bestvideo[height<=1280][width<=720]+bestaudio/best[height<=720][width<=1280]/best[height<=1280][width<=720]/best'
+                format_str = 'bestvideo[res<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=720]+bestaudio/best'
             elif ACTION == 'video_480p':
-                format_str = 'bestvideo[height<=480][width<=854]+bestaudio/bestvideo[height<=854][width<=480]+bestaudio/best[height<=480][width<=854]/best[height<=854][width<=480]/best'
+                format_str = 'bestvideo[res<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=480]+bestaudio/best'
             else:
                 format_str = 'bestaudio/best'
 
         ydl_opts = {
             'format': format_str,
-            'outtmpl': f"{OUTPUT_BASE}.%(ext)s", 
+            'outtmpl': f"{OUTPUT_BASE}.%(ext)s", # ALWAYS download using native extensions to prevent container conflicts
             'extractor_args': {'youtube': [f"player_client={cfg['client']}", "player_skip=web,web_embedded"]},
             'quiet': False, 
             'no_warnings': True,
