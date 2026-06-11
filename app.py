@@ -62,13 +62,13 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
             print("📘 Detected Facebook URL: Removing format limits to force maximum resolution...")
             format_str = 'bestvideo+bestaudio/best'
         else:
-            # Explicitly assign formats per iteration to ensure fresh parsing - 100% Original YouTube Logic
+            # CHANGED ONLY FOR YOUTUBE: Removed restriction to allow true high-res VP9/AV1 streams
             if ACTION == 'video_1080p':
-                format_str = 'bestvideo[height<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
+                format_str = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
             elif ACTION == 'video_720p':
-                format_str = 'bestvideo[height<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
+                format_str = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best'
             elif ACTION == 'video_480p':
-                format_str = 'bestvideo[height<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
+                format_str = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best'
             else:
                 format_str = 'bestaudio/best'
 
