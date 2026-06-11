@@ -62,13 +62,14 @@ for attempt in range(1, MAX_ATTEMPTS + 1):
             print("📘 Detected Facebook URL: Removing format limits to force maximum resolution...")
             format_str = 'bestvideo+bestaudio/best'
         else:
-            # Using 'res' instead of 'height' properly evaluates both horizontal (1920x1080) and vertical (1080x1920) streams.
+            # Use a bounding box to safely capture both horizontal and vertical streams up to the target tier,
+            # without strict codec limits so we can grab high-quality VP9/AV1 streams.
             if ACTION == 'video_1080p':
-                format_str = 'bestvideo[res<=1080][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=1080]+bestaudio/best'
+                format_str = 'bestvideo[width<=1920][height<=1920]+bestaudio/best'
             elif ACTION == 'video_720p':
-                format_str = 'bestvideo[res<=720][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=720]+bestaudio/best'
+                format_str = 'bestvideo[width<=1280][height<=1280]+bestaudio/best'
             elif ACTION == 'video_480p':
-                format_str = 'bestvideo[res<=480][vcodec^=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[res<=480]+bestaudio/best'
+                format_str = 'bestvideo[width<=854][height<=854]+bestaudio/best'
             else:
                 format_str = 'bestaudio/best'
 
